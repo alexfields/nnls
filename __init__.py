@@ -48,7 +48,8 @@ def nnls_predotted(A_dot_A, A_dot_b, tol=1e-8):
     w = A_dot_b
     while not P_bool.all() and w.max() > tol:
         j_idx = w[~P_bool].argmax()
-        P_bool[np.flatnonzero(~P_bool)[j_idx]] = True
+        newly_allowed = np.flatnonzero(~P_bool)[j_idx]
+        P_bool[newly_allowed] = True
         s[:] = 0
         currPs = np.flatnonzero(P_bool)
         if len(currPs) > 1:
@@ -56,10 +57,10 @@ def nnls_predotted(A_dot_A, A_dot_b, tol=1e-8):
         else:
             currP = currPs[0]
             s[currP] = A_dot_b[currP]/A_dot_A[currP, currP]
-        s_P_le_0 = (s[currPs] <= 0)
-        while s_P_le_0.any():
-            currPs_s_P_le_0 = currPs[s_P_le_0]
-            alpha = (x[currPs_s_P_le_0]/(x[currPs_s_P_le_0] - s[currPs_s_P_le_0])).min()
+        s_P_l_0 = (s[currPs] < 0)
+        while s_P_l_0.any():
+            currPs_s_P_l_0 = currPs[s_P_l_0]
+            alpha = (x[currPs_s_P_l_0]/(x[currPs_s_P_l_0] - s[currPs_s_P_l_0])).min()
             x += alpha*(s-x)
             P_bool[currPs] = (x[currPs] > tol)
             s[:] = 0
@@ -69,7 +70,9 @@ def nnls_predotted(A_dot_A, A_dot_b, tol=1e-8):
             else:
                 currP = currPs[0]
                 s[currP] = A_dot_b[currP]/A_dot_A[currP, currP]
-            s_P_le_0 = (s[currPs] <= 0)
+            s_P_l_0 = (s[currPs] < 0)
         x[:] = s[:]
+        if x[newly_allowed] == 0:
+            break  # avoid infinite loop
         w = A_dot_b - A_dot_A.dot(x)
     return x
